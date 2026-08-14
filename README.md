@@ -25,18 +25,101 @@ chat-app/
 ├── backend/ # Express API + Socket.io server
 └── frontend/ # React (Vite) client
 
+## Prerequisites
+
+- [Node.js](https://nodejs.org) (v18 or higher)
+- [PostgreSQL](https://www.postgresql.org/download/) installed and running locally
+
 ## Setup
 
-### Backend
+### 1. Database Setup
+
+Create a local PostgreSQL database:
+
+```sql
+CREATE DATABASE chatapp;
+```
+
+Then connect to it and run the following to create all tables:
+
+```sql
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(50) UNIQUE NOT NULL,
+  email VARCHAR(100) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE groups (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  created_by INT REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE group_members (
+  id SERIAL PRIMARY KEY,
+  group_id INT REFERENCES groups(id) ON DELETE CASCADE,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(group_id, user_id)
+);
+
+CREATE TABLE messages (
+  id SERIAL PRIMARY KEY,
+  sender_id INT REFERENCES users(id) NOT NULL,
+  receiver_id INT REFERENCES users(id),
+  group_id INT REFERENCES groups(id),
+  content TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  CHECK (
+    (receiver_id IS NOT NULL AND group_id IS NULL) OR
+    (receiver_id IS NULL AND group_id IS NOT NULL)
+  )
+);
+
+ALTER TABLE messages DROP CONSTRAINT messages_group_id_fkey;
+ALTER TABLE messages ADD CONSTRAINT messages_group_id_fkey
+  FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE;
+
+CREATE TABLE message_deletions (
+  id SERIAL PRIMARY KEY,
+  message_id INT REFERENCES messages(id) ON DELETE CASCADE,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  deleted_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(message_id, user_id)
+);
+```
+
+### 2. Backend Setup
 
 ```bash
 cd backend
 npm install
-# Create a .env file (see .env.example)
+```
+
+Create a `.env` file inside `backend/`:
+
+DB_USER=postgres
+DB_PASSWORD=your_postgres_password
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=chatapp
+JWT_SECRET=any_random_secret_string
+PORT=5000
+
+Start the backend:
+
+```bash
 npm run dev
 ```
 
-### Frontend
+The backend will run on `http://localhost:5000`.
+
+### 3. Frontend Setup
+
+Open a new terminal:
 
 ```bash
 cd frontend
@@ -44,17 +127,15 @@ npm install
 npm run dev
 ```
 
-## Environment Variables
+The frontend will run on `http://localhost:5173`.
 
-### Backend (`backend/.env`)
+### 4. Using the App
 
-DATABASE_URL=your_postgres_connection_string
-JWT_SECRET=your_secret_key
-PORT=5000
-FRONTEND_URL=http://localhost:5173
-NODE_ENV=development
+1. Open `http://localhost:5173` in your browser
+2. Sign up for an account
+3. Open a second browser (or an incognito window) and sign up with a different account to test real-time messaging and groups
 
-### Frontend (`frontend/.env`)
+## Notes
 
-VITE_API_URL=http://localhost:5000/api
-VITE_SOCKET_URL=http://localhost:5000
+- Both the backend and frontend servers must be running at the same time for the app to work.
+- This project is intended to run locally and has not been deployed.

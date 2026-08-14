@@ -123,6 +123,17 @@ const getGroupMessages = async (req, res) => {
     const userId = req.userId;
     const groupId = req.params.groupId;
 
+    const memberCheck = await pool.query(
+      "SELECT * FROM group_members WHERE group_id = $1 AND user_id = $2",
+      [groupId, userId],
+    );
+
+    if (memberCheck.rows.length === 0) {
+      return res
+        .status(403)
+        .json({ error: "You are not a member of this group" });
+    }
+
     const result = await pool.query(
       `SELECT m.*, u.username 
        FROM messages m

@@ -34,6 +34,7 @@ const GroupChat = () => {
 
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const hasShownRemovedAlert = useRef(false);
 
   const fetchGroupMessages = useCallback(async () => {
     setMessagesLoading(true);
@@ -42,10 +43,15 @@ const GroupChat = () => {
       setMessages(response.data.messages);
     } catch (err) {
       console.error(err);
+      if (err.response?.status === 403 && !hasShownRemovedAlert.current) {
+        hasShownRemovedAlert.current = true;
+        alert("You are not a member of this group.");
+        navigate("/groups");
+      }
     } finally {
       setMessagesLoading(false);
     }
-  }, [groupId]);
+  }, [groupId, navigate]);
 
   const fetchGroupInfo = useCallback(async () => {
     try {
